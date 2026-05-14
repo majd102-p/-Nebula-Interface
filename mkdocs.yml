@@ -1,0 +1,10 @@
+site_name: Nebula Interface Wiki
+site_description: Documentation and developer wiki for the Nebula Interface project.
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Getting Started: getting_started.md
+  - Architecture: architecture.md
+  - Hand Analysis: hand_analysis.md
+  - Contributing: contributing.md
