@@ -13,6 +13,7 @@ class HUD:
         tracking_state = status.get("tracking_state", "NO_HAND")
         calibration_enabled = bool(status.get("calibration_enabled", False))
         calibration_label = status.get("calibration_label")
+        performance = status.get("performance")
 
         # Bounding Box
         if hand_data.get("bbox"):
@@ -93,6 +94,28 @@ class HUD:
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.65,
                 (255, 180, 80),
+                2,
+            )
+
+        if performance:
+            perf_fps = getattr(performance, "fps", None)
+            perf_frame_ms = getattr(performance, "frame_time_ms", None)
+            perf_inference_ms = getattr(performance, "inference_ms", None)
+            perf_queue_depth = getattr(performance, "queue_depth", None)
+            perf_uptime_s = getattr(performance, "uptime_s", None)
+            perf_text = (
+                f"Perf: {perf_fps:.1f} FPS | {perf_frame_ms:.1f} ms | "
+                f"inf {perf_inference_ms:.1f} ms | q {perf_queue_depth} | up {perf_uptime_s:.0f}s"
+                if perf_fps is not None
+                else "Perf: n/a"
+            )
+            cv2.putText(
+                overlay,
+                perf_text,
+                (20, 360),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.58,
+                (180, 255, 180),
                 2,
             )
 

@@ -62,7 +62,11 @@ class TinyGestureAI:
 
     def _build_vector(self, hand_data: dict) -> Optional[List[float]]:
         features = hand_data.get("features") or {}
-        fingers = hand_data.get("fingers_up") or [0, 0, 0, 0, 0]
+        fingers = (
+            features.get("finger_extension_scores")
+            or hand_data.get("fingers_up")
+            or [0, 0, 0, 0, 0]
+        )
         if len(fingers) != 5:
             return None
 

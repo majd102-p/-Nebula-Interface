@@ -8,3 +8,5 @@ class RuntimeState:
     frame_index: int = 0
     frame_count: int = 0
     consecutive_read_failures: int = 0
+    performance: object = None
+    last_frame_ms: float = 0.0

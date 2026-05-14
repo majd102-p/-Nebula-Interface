@@ -31,7 +31,7 @@ const uint16_t MQTT_PORT = 1883;
 
 // Hardware pins
 #define NEOPIXEL_PIN 15
-#define NEOPIXEL_COUNT 8
+#define NEOPIXEL_COUNT 16
 
 // OLED config (I2C default)
 #define SCREEN_WIDTH 128
@@ -43,6 +43,59 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 Adafruit_NeoPixel strip(NEOPIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 int current_brightness = 100;
+
+String extractStringField(const String& payload, const char* key) {
+  String pattern = String("\"") + key + "\":";
+  int start = payload.indexOf(pattern);
+  if (start < 0) return "";
+  start += pattern.length();
+  while (start < payload.length() && (payload[start] == ' ' || payload[start] == '"')) {
+    start++;
+  }
+  int end = start;
+  if (start < payload.length() && payload[start - 1] == '"') {
+    while (end < payload.length() && payload[end] != '"') end++;
+    return payload.substring(start, end);
+  }
+  while (end < payload.length() && payload[end] != ',' && payload[end] != '}') end++;
+  return payload.substring(start, end);
+}
+
+int extractIntField(const String& payload, const char* key, int fallback = -1) {
+  String raw = extractStringField(payload, key);
+  raw.trim();
+  if (!raw.length()) return fallback;
+  return raw.toInt();
+}
+
+void showGesturePayload(const String& payload) {
+  String gesture = extractStringField(payload, "gesture");
+  String mode = extractStringField(payload, "mode");
+  String source = extractStringField(payload, "decision_source");
+  int value = extractIntField(payload, "value", -1);
+  int confidence = extractIntField(payload, "confidence", -1);
+
+  if (gesture.length() == 0) gesture = payload;
+
+  String line1 = mode.length() ? mode : "Gesture event";
+  String line2 = gesture;
+  if (value >= 0) {
+    line2 += " ";
+    line2 += String(value);
+    line2 += "%";
+  }
+  if (source.length() > 0) {
+    line2 += " ";
+    line2 += source;
+  }
+  if (confidence >= 0) {
+    line2 += " ";
+    line2 += String(confidence);
+    line2 += "%";
+  }
+
+  drawStatus(line1.c_str(), line2.c_str());
+}
 
 void drawStatus(const char* line1, const char* line2 = NULL) {
   display.clearDisplay();
@@ -68,20 +121,21 @@ void callback(char* topic, byte* payload, unsigned int length) {
   for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
 
   if (String(topic) == "nebula/lighting/control") {
-    // Expect payload as number (0-100) or JSON number
-    int v = msg.toInt();
-    if (v <= 0 && msg.indexOf('0') == -1) {
-      drawStatus("Lighting control","invalid payload");
+    int v = extractIntField(msg, "value", msg.toInt());
+    if (v < 0) {
+      drawStatus("Lighting control", "invalid payload");
       return;
     }
-    int scaled = map(constrain(v, 0, 100), 0, 100, 0, 255);
+    v = constrain(v, 0, 100);
+    int scaled = map(v, 0, 100, 0, 255);
     setStripBrightness(scaled);
     char buf[32];
     sprintf(buf, "Brightness: %d%%", v);
     drawStatus("Lighting control", buf);
   } else if (String(topic) == "nebula/gestures/events") {
-    // Show event text
-    drawStatus("Gesture event:", msg.c_str());
+    showGesturePayload(msg);
+  } else if (String(topic) == "nebula/system/status") {
+    showGesturePayload(msg);
   }
 }
 

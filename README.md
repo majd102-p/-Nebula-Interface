@@ -58,6 +58,28 @@ It explains:
 - What common tutorial shortcuts are wrong or incomplete
 - How to verify that the system is really working
 
+## Reference Repositories
+
+These are the main references that shaped the architecture:
+
+| Repo | Why it matters | What Nebula takes from it |
+|------|----------------|---------------------------|
+| `google-ai-edge/mediapipe` | Official MediaPipe baseline | Hand tracking foundation and landmark semantics |
+| `Kazuhito00/hand-gesture-recognition-using-mediapipe` | Best overall gesture pipeline | Clean MLP-style gesture classification ideas |
+| `kinivi/hand-gesture-recognition-mediapipe` | Polished English fork | Simplified gesture handling and readable structure |
+| `potrgani/hand-gesture-recognition-ha-addon` | Strong MQTT architecture | Event-first messaging and Home Assistant style control |
+| `afsaldigitalart/mediapipe-gesture-control` | Smooth realtime control | Fast control-loop feel and responsive feedback |
+
+### What was reused conceptually
+
+- MediaPipe stays the source of truth for hand landmarks.
+- Gesture analysis is separated from camera capture.
+- Gesture output becomes events, not UI-only state.
+- MQTT is treated as a transport layer for devices.
+- The HUD mirrors the runtime state so debugging stays visible.
+
+For a more direct source-to-project mapping, see [docs/reference_map.md](docs/reference_map.md).
+
 ---
 
 ## Overview
@@ -119,6 +141,18 @@ flowchart LR
 - Treat calibration, motion gestures, and AI refinement as an analysis layer, not as camera logic.
 - Keep the main loop as a composition root only.
 - Use MQTT as a delivery channel, not as a place where gesture logic lives.
+
+### Canonical Core Layer
+
+The reusable logic now lives in `core/`:
+
+- `core/feature_extractor.py` creates rotation-aware, ML-ready hand features.
+- `core/gesture_classifier.py` combines rule scores, motion overrides, and optional ML predictions.
+- `core/mqtt_manager.py` provides queued publishing, heartbeat, LWT, reconnect, and rate limiting.
+- `core/performance_monitor.py` tracks FPS, inference time, queue depth, and runtime health.
+- `core/state_machine.py` isolates gesture-driven mode transitions.
+
+The legacy `vision/` and `communication/` modules remain as compatibility wrappers over these core components.
 
 ### UML Class Diagram
 
@@ -257,7 +291,8 @@ This creates `configs/calibration_prototypes.json`, which the local AI loader wi
 
 ## MQTT Topics
 
-- `nebula/system/status` - Current system state
+- `nebula/system/status` - Online/offline lifecycle state
+- `nebula/system/heartbeat` - Periodic heartbeat from the Python app
 - `nebula/gestures/events` - Gesture events
 - `nebula/lighting/control` - Lighting control values
 
@@ -271,6 +306,17 @@ These topics keep the UI and device logic separated. That separation is importan
 nebula-interface/
 ├── main.py
 ├── config.py
+├── core/
+│   ├── feature_extractor.py
+│   ├── gesture_classifier.py
+│   ├── mqtt_manager.py
+│   ├── performance_monitor.py
+│   └── state_machine.py
+├── runtime/
+│   ├── camera_manager.py
+│   ├── frame_processor.py
+│   ├── input_controller.py
+│   └── runtime_state.py
 ├── setup.py
 ├── test_system.py
 ├── README.md
@@ -283,6 +329,8 @@ nebula-interface/
 │   └── config.json
 ├── communication/
 │   └── mqtt_handler.py
+├── embedded/
+│   └── esp32_mqtt_demo/
 ├── vision/
 │   ├── hand_tracker.py
 │   ├── gesture_engine.py
@@ -328,9 +376,7 @@ pip install -r requirements.txt
 
 Then run the system test:
 
-```bash
-python test_system.py
-```
+Before the first full run, validate the environment again with `python test_system.py`.
 
 You should see all tests pass before you start `main.py`.
 
@@ -338,27 +384,75 @@ You should see all tests pass before you start `main.py`.
 
 ## Quick Start
 
-### 1. Start Mosquitto
+### How to Run on ESP32 / Wokwi
+
+Use this path when you want to see the full Python -> MQTT -> ESP32 loop working end to end.
+
+1. Start an MQTT broker.
 
 ```bash
 mosquitto -v
 ```
 
-### 2. Run Wokwi
+2. Configure the Python app in `configs/config.json`.
 
-1. Open [wokwi.com](https://wokwi.com)
-2. Create a new project
-3. Select ESP32 DevKit V1
-4. Add SSD1306 OLED and WS2812B NeoPixel
-5. Wire the components correctly
-6. Paste the ESP32 code
-7. Start simulation
+- Set `mqtt.host` to your broker address.
+- Keep `mqtt.port` at `1883` unless your broker uses another port.
+- Set the camera and gesture thresholds you want to demo.
 
-### 3. Run the Python app
+3. Open the ESP32 demo in Wokwi or on real hardware.
+
+- Wokwi path: create an ESP32 project, add an SSD1306 OLED and a WS2812 NeoPixel strip, then paste [embedded/esp32_mqtt_demo/main.ino](embedded/esp32_mqtt_demo/main.ino).
+- Real hardware path: copy [embedded/esp32_mqtt_demo/secrets.example.h](embedded/esp32_mqtt_demo/secrets.example.h) to `secrets.h`, fill in Wi-Fi and broker credentials, then flash the sketch to the board.
+
+4. Verify the wiring and topics.
+
+- OLED on I2C default pins.
+- NeoPixel on GPIO 15.
+- Subscribe to `nebula/system/status`, `nebula/gestures/events`, and `nebula/lighting/control`.
+
+### Wokwi Wiring
+
+Use this wiring for an ESP32 DevKit V1 in Wokwi:
+
+| Component | ESP32 Pin | Notes |
+|-----------|-----------|-------|
+| SSD1306 VCC | 3V3 | Power the OLED from 3.3V |
+| SSD1306 GND | GND | Shared ground |
+| SSD1306 SDA | GPIO 21 | Default I2C SDA on ESP32 |
+| SSD1306 SCL | GPIO 22 | Default I2C SCL on ESP32 |
+| WS2812 VCC | 5V | In Wokwi this is fine; keep common ground |
+| WS2812 GND | GND | Shared ground |
+| WS2812 DIN | GPIO 15 | Matches `NEOPIXEL_PIN` in [main.ino](embedded/esp32_mqtt_demo/main.ino) |
+
+Recommended extras:
+
+- Add a 330 ohm resistor between GPIO 15 and DIN if you are wiring real hardware.
+- Keep the OLED address at `0x3C`, which matches the sketch.
+- If you use a different ESP32 board, keep SDA/SCL on the default Wire pins unless you also change the code.
+
+5. Run the Python app.
 
 ```bash
 python main.py
 ```
+
+6. Test the live loop.
+
+- Show `PEACE` to switch mode.
+- Show `FIST` to return to idle.
+- Show an open hand to move into media mode.
+- Use `PINCH_READY` for brightness control.
+- Watch the OLED update immediately and the NeoPixel strip respond to lighting payloads.
+
+### Troubleshooting the ESP32 path
+
+- If the ESP32 does not connect, confirm Wi-Fi credentials and broker host/port.
+- If the OLED stays blank, verify the I2C wiring and address.
+- If brightness does not change, confirm that `nebula/lighting/control` is being published and that the payload contains a `value` field.
+- If the gesture text looks wrong, inspect the `nebula/gestures/events` payload and the `decision_source` field.
+
+Before the first full run, validate the environment again with `python test_system.py`.
 
 Shortcuts:
 
@@ -503,15 +597,28 @@ If gestures are unstable:
 
 ## Screenshots and demo
 
-Add real screenshots of:
+Use this checklist before publishing the project or posting it on LinkedIn:
 
-- the live HUD
-- Peace gesture activation
-- Brightness control with pinch
-- Wokwi OLED output
-- NeoPixel feedback
+- Live HUD showing hand landmarks, gesture label, confidence, and performance stats.
+- Peace gesture activating lighting mode.
+- Fist gesture returning the system to idle.
+- Open hand switching into media mode.
+- Pinch control changing brightness in real time.
+- ESP32 OLED showing the received gesture or brightness payload.
+- NeoPixel strip reacting to the lighting topic.
+- MQTT broker console showing published Nebula topics.
+- Wokwi simulator or real ESP32 setup side by side with the Python app.
 
-Add a demo video link after recording your run.
+Recommended file targets:
+
+- `assets/screenshots/hud-live.png`
+- `assets/screenshots/gesture-peace.png`
+- `assets/screenshots/gesture-fist.png`
+- `assets/screenshots/gesture-pinch-brightness.png`
+- `assets/screenshots/esp32-oled.png`
+- `assets/screenshots/neopixel-feedback.png`
+
+Add a demo video link after recording a short run that shows the full camera -> MQTT -> ESP32 flow.
 
 ---
 

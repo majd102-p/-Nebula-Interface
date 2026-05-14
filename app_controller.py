@@ -1,5 +1,6 @@
 import cv2
 
+from core.performance_monitor import PerformanceMonitor
 from runtime.camera_manager import CameraManager
 from runtime.frame_processor import FrameProcessor
 from runtime.input_controller import InputController
@@ -15,10 +16,11 @@ class NebulaApp:
         self.mqtt_manager = mqtt_manager
         self.logger = logger
         self.state = RuntimeState()
+        self.performance_monitor = PerformanceMonitor()
         self.camera = CameraManager(config, logger)
         self.input_controller = InputController(tracker, logger)
         self.frame_processor = FrameProcessor(
-            tracker, gesture_engine, hud, mqtt_manager, logger
+            tracker, gesture_engine, hud, mqtt_manager, self.performance_monitor, logger
         )
 
     @property

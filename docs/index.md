@@ -4,3 +4,4 @@ Welcome to the Nebula Interface project wiki. This site provides developer-focus
 
 - See the Getting Started guide to run locally.
 - See Architecture notes for design rationale.
+- See the [Reference Map](reference_map.md) for repo-to-code mapping.

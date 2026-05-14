@@ -2,6 +2,7 @@ import logging
 import time
 
 from config import SystemMode, TrackingState
+from core.state_machine import GestureStateMachine
 from utils.helpers import calculate_distance, clamp
 
 
@@ -10,6 +11,7 @@ class GestureEngine:
         self.config = config
         self.current_mode: SystemMode = SystemMode.IDLE
         self.tracking_state: TrackingState = TrackingState.NO_HAND
+        self.state_machine = GestureStateMachine(initial_mode=self.current_mode)
         self.last_event_time = 0
         self.last_continuous_time = 0
         self.last_brightness = float(
@@ -39,16 +41,6 @@ class GestureEngine:
             gestures_cfg.get("brightness_smoothing_alpha", 0.35)
         )
         self.brightness_deadband = int(gestures_cfg.get("brightness_deadband", 3))
-        self.mode_map = {
-            "PEACE": (SystemMode.LIGHTING, "✓ Mode changed to LIGHTING"),
-            "FIST": (SystemMode.IDLE, "✓ Mode changed to IDLE"),
-            "OPEN": (SystemMode.MEDIA, "✓ Mode changed to MEDIA"),
-            "ONE": (SystemMode.MOUSE, "✓ Mode changed to MOUSE"),
-            "SWIPE_RIGHT": (SystemMode.LIGHTING, "✓ Mode changed to LIGHTING"),
-            "SWIPE_LEFT": (SystemMode.MOUSE, "✓ Mode changed to MOUSE"),
-            "SWIPE_UP": (SystemMode.MEDIA, "✓ Mode changed to MEDIA"),
-            "SWIPE_DOWN": (SystemMode.IDLE, "✓ Mode changed to IDLE"),
-        }
 
     def is_cooldown_ready(self, is_event=True):
         cooldown = (
@@ -100,22 +92,30 @@ class GestureEngine:
         return self.last_preview_brightness
 
     def get_mode_change(self, gesture):
-        return self.mode_map.get(gesture, (None, None))
+        next_mode = self.state_machine.transition_map.get(gesture)
+        if next_mode is None:
+            return None, None
+        return next_mode, f"✓ Mode changed to {next_mode.name}"
 
     def _accept_mode_change(self, gesture):
-        new_mode, message = self.get_mode_change(gesture)
-        if new_mode is None:
+        proposed = self.state_machine.propose(
+            gesture,
+            confidence=1.0,
+            min_confidence=self.min_action_confidence,
+        )
+        if not proposed.accepted:
             return None
 
-        if gesture == "PEACE" and self.current_mode != SystemMode.IDLE:
-            return None
-        if gesture == "OPEN" and self.current_mode != SystemMode.LIGHTING:
+        committed = self.state_machine.commit(proposed)
+        if committed is None:
             return None
 
-        self.current_mode = new_mode
+        self.current_mode = committed
         self.last_event_time = time.time()
-        logging.info(message)
-        return f"MODE_CHANGED_TO_{new_mode.name}"
+        _, message = self.get_mode_change(gesture)
+        if message:
+            logging.info(message)
+        return f"MODE_CHANGED_TO_{committed.name}"
 
     def handle_motion_gesture(self, motion_gesture, motion_confidence):
         if not self.enable_motion_gestures:
@@ -125,14 +125,24 @@ class GestureEngine:
         if not self.is_cooldown_ready(is_event=True):
             return None
 
-        new_mode, message = self.get_mode_change(motion_gesture)
-        if new_mode is None:
+        proposed = self.state_machine.propose(
+            motion_gesture,
+            confidence=motion_confidence,
+            min_confidence=self.min_action_confidence,
+        )
+        if not proposed.accepted:
             return None
 
-        self.current_mode = new_mode
+        committed = self.state_machine.commit(proposed)
+        if committed is None:
+            return None
+
+        self.current_mode = committed
         self.last_event_time = time.time()
-        logging.info(message)
-        return f"MODE_CHANGED_TO_{new_mode.name}"
+        _, message = self.get_mode_change(motion_gesture)
+        if message:
+            logging.info(message)
+        return f"MODE_CHANGED_TO_{committed.name}"
 
     def handle_continuous_control(self, gesture, normalized_pinch):
         if gesture not in self.CONTINUOUS_GESTURES or not self.is_cooldown_ready(
