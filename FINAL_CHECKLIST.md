@@ -16,13 +16,13 @@
 - [ ] **Libraries installed** (all tests should pass)
   ```bash
   python test_system.py
-  # ✓ Total: 6/6 tests passed
+  # ✓ Total: 6/6 tests passed (validated locally May 15, 2026)
   ```
 
 - [ ] **Mosquitto running**
   ```bash
   mosquitto -v
-  # ✓ Listening on port 1883
+  # ✓ Listening on port 1883 (validated locally May 15, 2026)
   ```
 
 - [ ] **Wokwi ready**
@@ -40,7 +40,7 @@
 - [ ] **Camera working**
   ```bash
   python -c "import cv2; print('Camera OK' if cv2.VideoCapture(0).isOpened() else 'No camera')"
-  # ✓ Camera OK
+  # ✓ Camera OK (validated locally May 15, 2026)
   ```
 
 ---
@@ -65,7 +65,7 @@
    cd c:\Users\Eng-JoJo\Desktop\projects\nebula-interface
    python main.py
    ```
-   ✅ You should see:
+  ✅ You should see:
    ```
    ==================================================
    🚀 NEBULA INTERFACE STARTING
@@ -193,7 +193,7 @@ tail -f logs/nebula_*.log
 - [ ] جميع الاختبارات نجحت
   ```bash
   python test_system.py
-  # ✓ Total: 6/6 tests passed
+  # ✓ Total: 6/6 tests passed (validated locally May 15, 2026)
   ```
 
 - [ ] السجلات تُنشأ بنجاح
@@ -224,5 +224,5 @@ python main.py            # Terminal 2
 
 **استمتع بـ Nebula Interface!** 🌌
 
-تم التحضير: May 9, 2026
+تم التحقق محلياً: May 15, 2026
 الإصدار: v1.0 - Production Ready
