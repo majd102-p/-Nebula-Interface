@@ -41,8 +41,9 @@ def main():
             logger.warning("⚠ Running without MQTT (ESP32 will not receive commands)")
 
         logger.info(
-            "✓ Nebula Interface Ready - Press 'q' to quit, 'd' for debug, 'k' for calibration capture, 1-5 for label, 'r' to reset"
+            "✓ Nebula Interface Ready - Press 'q' to quit, 'd' for debug, 'k' for calibration capture"
         )
+        logger.info("Press 1-5 to label, or 'r' to reset")
         logger.info("=" * 50)
 
         app.run()

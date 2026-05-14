@@ -4,7 +4,6 @@ Nebula Interface - Setup Script
 Installs dependencies and checks system requirements
 """
 
-import os
 import subprocess
 import sys
 from pathlib import Path

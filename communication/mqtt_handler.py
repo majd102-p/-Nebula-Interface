@@ -6,8 +6,6 @@ import time
 
 import paho.mqtt.client as mqtt
 
-from config import SystemMode
-
 
 class MQTTManager:
     def __init__(self, config):

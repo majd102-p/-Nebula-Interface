@@ -9,7 +9,10 @@ import mediapipe as mp
 from .feature_extractor import HandFeatureExtractor
 from .hand_analysis_pipeline import HandAnalysisPipeline
 
-MODEL_URL = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
+    "hand_landmarker/float16/1/hand_landmarker.task"
+)
 MODEL_PATH = Path("assets/models/hand_landmarker.task")
 
 

@@ -1,7 +1,5 @@
 import math
 
-import numpy as np
-
 from utils.helpers import calculate_angle, calculate_distance
 
 
