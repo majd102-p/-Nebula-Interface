@@ -534,7 +534,7 @@ If you want, you can use this README as a template for future AI, IoT, or comput
 
 ---
 
-**Developed with ❤️ by [Your Name]**
+**Developed with ❤️ by [majd102-p]**
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white)
